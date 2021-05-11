@@ -1,5 +1,6 @@
 # HomeAssistant Pool automation
 
+![Home Assistant Frontend](PoolDashboard.png)
 
 **English version below**
 
