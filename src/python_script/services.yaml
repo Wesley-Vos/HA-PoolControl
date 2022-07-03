@@ -1,0 +1,68 @@
+pool_pump_commands:
+  name: Pool Pump commands
+  description: Control the pool pump
+  fields:
+    command:
+      name: Command
+      description: Command to execute
+      example: '["on", "off", "recover"]'
+      required: true
+      selector:
+        select:
+          options:
+            - "on"
+            - "off"
+            - recover
+      
+    trigger:
+      name: Trigger
+      description: Trigger for the change
+      example: '["online", "button", "watch", "heatpump", "timer", "schedule", "solar", "reset", "heated_timer", "onlineSwim", "buttonSwim", "watchSwim"]'
+      required: true
+      selector:
+        select:
+          options:
+            - online
+            - button
+            - watch
+            - heatpump
+            - timer
+            - schedule
+            - solar
+            - reset
+            - heated_timer
+            - onlineSwim
+            - buttonSwim
+            - watchSwim
+  
+pool_notify:
+  name: Pool Notifications
+  description: Sends notifications about pool to user
+  fields:
+    domain:
+      name: Domain
+      description: Type of notification
+      example: '["Pool", "Temperature"]'
+      required: true
+      selector:
+        text:
+    old_state:
+      name: Old state
+      description: Old state of pump
+      selector:
+        text:
+    new_state:
+      name: New state
+      description: New state of pump
+      selector:
+        text:
+    old_trigger:
+      name: Old trigger
+      description: Old trigger of pump
+      selector:
+        text:
+    new_trigger:
+      name: New trigger
+      description: New trigger of pump
+      selector:
+        text:

@@ -1,0 +1,106 @@
+switch:
+  - platform: template
+    switches:
+      pool_pump_relay_on:
+        friendly_name: "Pool Pump on"
+        value_template: >- 
+            {%- if is_state('switch.pool_pump_relay', 'on') -%}
+                on
+            {%- else -%}
+                off
+            {%- endif -%}
+        icon_template: "mdi:power-cycle"
+        turn_on:
+          service: python_script.pool_pump_commands
+          data:
+            command: on
+            trigger: online
+        turn_off:
+          service: python_script.pool_pump_commands
+          data:
+            command: off
+            trigger: online
+      pool_pump_relay_off:
+        friendly_name: "Pool Pump off"
+        value_template: >- 
+            {%- if is_state('switch.pool_pump_relay', 'off') -%}
+                on
+            {%- else -%}
+                off
+            {%- endif -%}
+        icon_template: "mdi:power-off"
+        turn_on:
+          service: python_script.pool_pump_commands
+          data:
+            command: off
+            trigger: online
+        turn_off:
+          service: python_script.pool_pump_commands
+          data:
+            command: on
+            trigger: online
+      pool_pump_block:
+        friendly_name: Pomp geblokkeerd
+        value_template: "{{ states('input_number.pool_pump_priority') | int <= 5 }}"
+        icon_template: >-
+          {%- if states('input_select.pool_pump_trigger') in ('online', 'onlineSwim') -%} 
+            mdi:cloud-lock 
+          {%- elif states('input_select.pool_pump_trigger') in ('button', 'buttonSwim') -%} 
+            mdi:account-lock 
+          {%- elif states('input_select.pool_pump_trigger') in ('watch', 'watchSwim') -%}
+            mdi:watch-vibrate-off
+          {%- elif is_state('input_select.pool_pump_trigger', 'timer') -%} 
+            mdi:lock-clock 
+          {%- elif is_state('input_select.pool_pump_trigger', 'heated_timer') -%} 
+            mdi:lock-clock 
+          {%- elif is_state('input_select.pool_pump_trigger', 'heatpump') -%} 
+            mdi:lock 
+          {%- else -%} 
+            mdi:lock-open-variant 
+          {%- endif -%}
+        turn_on:
+          service: python_script.pool_pump_commands
+          data:
+            command: reset
+        turn_off:
+          service: python_script.pool_pump_commands
+          data:
+            command: reset
+      pool_heatpump:
+        friendly_name: Pool Warmtepomp
+        value_template: "{{ states('switch.pool_heatpump_climate') }}"
+        icon_template: "mdi:radiator"
+        turn_on:
+          service: automation.trigger
+          target:
+            entity_id: automation.pool_heatpump_on
+        turn_off:
+          service: automation.trigger
+          target:
+            entity_id: automation.pool_heatpump_off
+      pool_heatpump_climate:
+        friendly_name: Pool Warmtepomp climate
+        value_template: "{{ states('input_boolean.pool_heatpump_state_climate') }}"
+        icon_template: "mdi:radiator"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.pool_heatpump_state_climate
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.pool_heatpump_state_climate
+      pool_swim_active:
+        value_template: "{{ states('input_select.pool_pump_trigger') in ('onlineSwim', 'buttonSwim', 'watchSwim') }}"
+        icon_template: "mdi:pool"
+        friendly_name: Zwembad
+        turn_on:
+          service: python_script.pool_pump_commands
+          data:
+            command: "on"
+            trigger: "onlineSwim"
+        turn_off:
+          service: python_script.pool_pump_commands
+          data:
+            command: "recover"
+            trigger: "reset"

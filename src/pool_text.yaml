@@ -1,0 +1,78 @@
+sensor:
+  - platform: template
+    sensors:
+      pool_current_state_txt:
+        friendly_name: "Pool tekst huidige staat"
+        icon_template: 'mdi:card-text-outline'
+        value_template: >-
+            {% set nu = now().timestamp() %}
+            {% if is_state('switch.pool_pump_relay', 'on') %}
+            {# Filter pump is on #}
+              {% set trigger = states('input_select.pool_pump_trigger') %}
+              {% if trigger in ("online", "watch", "buton", "heatpump") %}
+                Pomp is **ingeschakeld** door **{{ states('sensor.pool_last_state_change') }}** en heeft **geen** geplande wijzigingen.
+              {% elif trigger == "after_timer" %}
+                Pomp is **ingeschakeld** volgens **naloop timer** die om **{{ states('input_datetime.pool_after_timer_end')[11:16] }}** eindigt.
+              {% elif trigger in ("timer", "heated_timer") %}
+                {% set delta = ((state_attr('input_datetime.pool_timer_end', 'timestamp')/(86400)) | int) - ((nu/(86400)) | int) %}
+                {% set days = ['vandaag', 'morgen', 'overmorgen', states('input_datetime.pool_timer_end')[8:10] + '-' + states('input_datetime.pool_timer_end')[5:7]] %}
+                {% set delta = ((delta | int), 3) | min %}
+                {% set endDate = days[delta] %}
+                {% if is_state('input_select.pool_pump_trigger', 'heated_timer') %}{% set name = 'verwarmde timer' %}{% else %}{% set name = 'timer' %}{% endif %}
+                Pomp is **ingeschakeld** volgens **{{ name }}** die **{{ endDate }}** om **{{ states('input_datetime.pool_timer_end')[11:16] }}** eindigt.
+              {% elif trigger == "schedule" %}
+                {% if is_state('binary_sensor.pool_schedule_first_active', 'on') %}
+                  {% set pumpCycle = "eerste" %}
+                  {% set endDate = states('input_datetime.pool_schedule_end')[0:5] %}
+                {% else %}
+                  {% set pumpCycle = "laatste" %}
+                  {% set endDate = states('input_datetime.pool_schedule_last_cycle_end')[0:5] %}
+                {% endif %}
+                Pomp is **ingeschakeld** volgens **schema** voor de **{{ pumpCycle }}** cyclus met eindtijd **{{ endDate }}**.
+              {% elif trigger == "solar" %}
+                Pomp is **ingeschakeld** door de **zon** ({{ states('sensor.util_power_solar_average') }} W)
+              {% else %}
+                Pomp is **ingeschakeld**.
+              {% endif %}
+            {% else %}
+            {# Filter pump is off #}
+              {% set trigger = states('input_select.pool_pump_trigger') %}
+              {% if trigger in ("online", "watch", "button") %}
+                Pomp is **uitgeschakeld** door **{{ states('sensor.pool_last_state_change') }}** en heeft **geen** geplande wijzigingen.
+              {% elif trigger in ("timer") %}
+                {% set delta = ((state_attr('input_datetime.pool_timer_end', 'timestamp')/(86400)) | int) - ((nu/(86400)) | int) %}
+                {% set days = ['vandaag', 'morgen', 'overmorgen', states('input_datetime.pool_timer_end')[8:10] + '-' + states('input_datetime.pool_timer_end')[5:7]] %}
+                {% set delta = ((delta | int), 3) | min %}
+                {% set endDate = days[delta] %}
+                Pomp is **uitgeschakeld** volgens **timer** die **{{ endDate }}** om **{{ states('input_datetime.pool_timer_end')[11:16] }}** eindigt.
+              {% else %}
+                {% if is_state('input_boolean.pool_timer_active', 'on') and state_attr('input_datetime.pool_timer_end', 'timestamp') > nu %}
+                  {% set startDate = states('input_datetime.pool_timer_start') %}
+                  {% set delta = ((state_attr('input_datetime.pool_timer_start', 'timestamp')/(86400)) | int) - ((nu/(86400)) | int) %}
+                  {% set days = ['vandaag', 'morgen', 'overmorgen', startDate[8:10] + '-' + startDate[5:7]] %}
+                  {% set delta = ((delta | int), 3) | min %}
+                  {% set startDate2 = days[delta] %}
+                  {% if is_state('input_boolean.pool_timer_heat', 'on') %}{% set name = 'verwarmde timer' %}{% else %}{% set name = 'timer' %}{% endif %}
+                  Pomp is **uitgeschakeld** maar zal **{{ startDate2 }}** om **{{ startDate[11:16] }}** volgens **{{ name }}** ingeschakeld worden.
+                {% elif (nu%86400 + 7200) < state_attr('input_datetime.pool_schedule_start', 'timestamp') %}
+                  Pomp is **uitgeschakeld** maar zal om **{{ states('input_datetime.pool_schedule_start')[0:5] }}** voor de **eerste cyclus** ingeschakeld worden.
+                {% elif (nu%86400 + 7200) < state_attr('input_datetime.pool_schedule_last_cycle_start', 'timestamp') and (states('sensor.pool_pump_time_on')|float)*60 <= states('input_number.pool_pump_duration_lower_threshold')|float %}
+                  Pomp is **uitgeschakeld** maar zal om **{{ states('input_datetime.pool_schedule_last_cycle_start')[0:5] }}** voor de **laatste cyclus** ingeschakeld worden.
+                {% else %}
+                  Pomp is **uitgeschakeld** en heeft **geen** geplande wijzigingen.
+                {% endif %}
+              {% endif %}
+            {% endif %}
+      pool_pump_time_today:
+        friendly_name: "Pool pomptijd vandaag"
+        icon_template: "mdi:card-text-outline"
+        availability_template: "{{ states('sensor.pool_pump_time_on')|float(-1) >= 0 }}"
+        value_template: >-
+            {% set time_on = states('sensor.pool_pump_time_on')|float(-1) %}
+            {% set lower =  (states('input_number.pool_pump_duration_lower_threshold')|float/60)|round %}
+            {% if time_on > lower %}
+              Dagelijks pompschema is **voltooid** en heeft **{{ states('sensor.pool_pump_time') }} uur** gedraaid.
+            {% else %}
+              Dagelijks pompschema is nog **niet voltooid**, nog **{{ states('sensor.pool_pump_remaining_time') }} uur** te gaan.
+            {% endif %}
+            
